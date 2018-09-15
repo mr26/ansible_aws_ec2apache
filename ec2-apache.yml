@@ -1,0 +1,57 @@
+---
+
+- hosts: localhost
+  tasks:
+
+  - name: Launch Instance
+
+    ec2:
+      key_name: py-key-pair
+      instance_type: t2.micro
+      image: ami-6871a115
+      wait: yes
+      count: 1
+      assign_public_ip: yes
+      region: 'us-east-1'
+      vpc_subnet_id: "subnet-23b9f369"
+      group: sec-grp3
+      instance_tags:
+        apache_web: infra
+    register: ec2 
+
+  - name: Add host to ec2 group in-memory
+    add_host:
+      name: "{{ item.public_ip }}"
+      groups: ec2-test
+    with_items: "{{ ec2.instances }}"
+
+  - name: Wait for SSH to come up
+    wait_for:
+      host: "{{ item.public_ip }}"
+      port: 22
+      state: started
+    with_items: 
+      - "{{ ec2.instances }}"
+
+- hosts: ec2-test
+  remote_user: ec2-user
+  become: yes
+  tasks:
+
+  - name: Install Apache 
+    yum:
+      name: httpd
+      state: installed
+
+  - name: Start and Enable Apache
+    systemd:
+      name: httpd
+      state: started
+      enabled: yes
+
+  - name: Insert simple static web page
+    lineinfile:
+      path: /var/www/html/index.html
+      line: "This is your web page, Mehdi"
+      state: present
+      create: yes 
