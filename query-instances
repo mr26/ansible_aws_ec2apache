@@ -1,0 +1,3 @@
+## How to query instances and get their state (whether they're running, shut down, etc).
+
+aws ec2 describe-instances --query Reservations[*].Instances[*].[PublicIpAddress,InstanceId,State.Name] --output text
